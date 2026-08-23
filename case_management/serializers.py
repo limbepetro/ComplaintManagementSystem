@@ -30,8 +30,19 @@ class RespondentResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RespondentResponse
-        fields = "__all__"
+        fields = [
+            "id",
+            "complaint",
+            "respondent",
+            "notice",
+            "response_text",
+            "status",
+            "submitted_at",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = [
+            "id",
             "submitted_at",
             "created_at",
             "updated_at",
@@ -50,17 +61,26 @@ class RespondentResponseSerializer(serializers.ModelSerializer):
             instance.respondent if instance else None,
         )
 
-        if complaint and respondent:
-            if not complaint.complainant_id and not complaint.respondent_id:
-                raise serializers.ValidationError(
-                    "The selected complaint is invalid."
-                )
+        notice = attrs.get(
+            "notice",
+            instance.notice if instance else None,
+        )
 
+        if complaint and respondent:
             if complaint.respondent_id != respondent.id:
                 raise serializers.ValidationError({
                     "respondent": (
                         "The respondent does not belong to "
                         "the selected complaint."
+                    )
+                })
+
+        if complaint and notice:
+            if notice.complaint_id != complaint.id:
+                raise serializers.ValidationError({
+                    "notice": (
+                        "The selected notice does not belong "
+                        "to the selected complaint."
                     )
                 })
 
@@ -101,7 +121,6 @@ class RespondentResponseCreateSerializer(
         fields = [
             "id",
             "complaint",
-            "respondent",
             "notice",
             "response_text",
         ]
@@ -109,19 +128,11 @@ class RespondentResponseCreateSerializer(
 
     def validate(self, attrs):
         complaint = attrs["complaint"]
-        respondent = attrs["respondent"]
-
-        if complaint.respondent_id != respondent.id:
-            raise serializers.ValidationError({
-                "respondent": (
-                    "The respondent does not belong to "
-                    "the selected complaint."
-                )
-            })
+        notice = attrs.get("notice")
 
         if complaint.status not in [
-            Complaint.Status.RESPONSE_PENDING,
             Complaint.Status.NOTICE_SENT,
+            Complaint.Status.RESPONSE_PENDING,
         ]:
             raise serializers.ValidationError({
                 "complaint": (
@@ -130,12 +141,37 @@ class RespondentResponseCreateSerializer(
                 )
             })
 
+        if notice and notice.complaint_id != complaint.id:
+            raise serializers.ValidationError({
+                "notice": (
+                    "The selected notice does not belong "
+                    "to the selected complaint."
+                )
+            })
+
+        if RespondentResponse.objects.filter(
+            complaint=complaint
+        ).exclude(
+            status=RespondentResponse.Status.REJECTED
+        ).exists():
+            raise serializers.ValidationError({
+                "complaint": (
+                    "A respondent response already exists "
+                    "for this complaint."
+                )
+            })
+
         return attrs
 
     def create(self, validated_data):
+        complaint = validated_data["complaint"]
+
         return RespondentResponse.objects.create(
+            complaint=complaint,
+            respondent=complaint.respondent,
+            notice=validated_data.get("notice"),
+            response_text=validated_data["response_text"],
             status=RespondentResponse.Status.DRAFT,
-            **validated_data,
         )
 
 

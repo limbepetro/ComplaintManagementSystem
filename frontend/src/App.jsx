@@ -4,6 +4,7 @@ import "./App.css";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Complaints from "./pages/Complaints";
+import RespondentResponses from "./pages/RespondentResponses";
 import Mediation from "./pages/Mediation";
 import Hearings from "./pages/Hearings";
 
@@ -114,14 +115,16 @@ function App() {
     {
       name: "User Management",
       icon: "♙",
-      roles: ["ADMIN"],
+      roles: [
+        "ADMIN",
+      ],
     },
   ];
 
-  const visibleNavigation = navigation.filter(
-    (item) =>
+  const visibleNavigation =
+    navigation.filter((item) =>
       item.roles.includes(userRole)
-  );
+    );
 
   const getRoleName = () => {
     switch (userRole) {
@@ -167,28 +170,21 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
 
       case "Complaints":
         return <Complaints />;
 
+      case "Respondent Responses":
+        return <RespondentResponses />;
+
       case "Mediation":
         return <Mediation />;
 
       case "Hearings":
         return <Hearings />;
-
-      case "Respondent Responses":
-        return (
-          <ModulePlaceholder
-            title="Respondent Responses"
-            description="Manage respondent responses associated with complaints."
-          />
-        );
 
       case "Decision & Awards":
         return (
@@ -241,18 +237,12 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
     }
   };
 
-  /*
-   * Authentication gate.
-   * No valid login = login page only.
-   */
   if (!authenticated || !user) {
     return (
       <Login
@@ -288,25 +278,20 @@ function App() {
         </div>
 
         <nav>
-
           {visibleNavigation.map(
             (item) => (
               <button
                 key={item.name}
                 type="button"
                 className={`nav-item ${
-                  activePage ===
-                  item.name
+                  activePage === item.name
                     ? "active"
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(
-                    item.name
-                  )
+                  setActivePage(item.name)
                 }
               >
-
                 <span className="nav-icon">
                   {item.icon}
                 </span>
@@ -314,11 +299,9 @@ function App() {
                 <span>
                   {item.name}
                 </span>
-
               </button>
             )
           )}
-
         </nav>
 
         <div className="sidebar-bottom">
@@ -330,7 +313,6 @@ function App() {
               setActivePage("Settings")
             }
           >
-
             <span className="nav-icon">
               ⚙
             </span>
@@ -338,7 +320,6 @@ function App() {
             <span>
               Settings
             </span>
-
           </button>
 
           <button
@@ -346,7 +327,6 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
-
             <span className="nav-icon">
               ↪
             </span>
@@ -354,7 +334,6 @@ function App() {
             <span>
               Logout
             </span>
-
           </button>
 
         </div>
@@ -431,9 +410,7 @@ function App() {
 
         {/* CONTENT */}
         <section className="content">
-
           {renderPage()}
-
         </section>
 
       </main>
@@ -457,7 +434,9 @@ function ModulePlaceholder({
             CASE MANAGEMENT SYSTEM
           </p>
 
-          <h1>{title}</h1>
+          <h1>
+            {title}
+          </h1>
 
           <p className="subtitle">
             {description}

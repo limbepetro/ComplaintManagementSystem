@@ -1,4 +1,8 @@
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from complaints.models import Complaint
 
 from .models import (
     RespondentResponse,
@@ -14,6 +18,7 @@ from .models import (
 
 from .serializers import (
     RespondentResponseSerializer,
+    RespondentResponseCreateSerializer,
     MediationSessionSerializer,
     HearingSerializer,
     HearingCommitteeSerializer,
@@ -22,7 +27,6 @@ from .serializers import (
     EnforcementCaseSerializer,
     CostTaxationSerializer,
     CaseClosureSerializer,
-    RespondentResponseCreateSerializer,
 )
 
 from .permissions import (
@@ -34,24 +38,69 @@ from .permissions import (
 
 
 class RespondentResponseViewSet(viewsets.ModelViewSet):
-    queryset = (
-        RespondentResponse.objects
-        .select_related(
-            "complaint",
-            "respondent",
-            "notice",
-        )
-        .all()
-        .order_by("-created_at")
-    )
-
+    serializer_class = RespondentResponseSerializer
     permission_classes = [IsAdminOrCaseOfficer]
+
+    def get_queryset(self):
+        return (
+            RespondentResponse.objects
+            .select_related(
+                "complaint",
+                "respondent",
+                "notice",
+            )
+            .all()
+            .order_by("-created_at")
+        )
 
     def get_serializer_class(self):
         if self.action == "create":
             return RespondentResponseCreateSerializer
 
         return RespondentResponseSerializer
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-complaints",
+    )
+    def available_complaints(self, request):
+        complaints = (
+            Complaint.objects
+            .select_related(
+                "respondent",
+            )
+            .filter(
+                status__in=[
+                    Complaint.Status.NOTICE_SENT,
+                    Complaint.Status.RESPONSE_PENDING,
+                ]
+            )
+            .order_by("-updated_at")
+        )
+
+        data = [
+            {
+                "id": complaint.id,
+                "case_number": complaint.case_number,
+                "title": complaint.title,
+                "status": complaint.status,
+                "respondent": {
+                    "id": complaint.respondent.id,
+                    "full_name":
+                        complaint.respondent.full_name,
+                    "organization_name":
+                        complaint.respondent.organization_name,
+                },
+            }
+            for complaint in complaints
+        ]
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
+
 
 class MediationSessionViewSet(viewsets.ModelViewSet):
     serializer_class = MediationSessionSerializer
@@ -63,7 +112,10 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
         if user.role == "ADMIN":
             return (
                 MediationSession.objects
-                .select_related("complaint", "mediator")
+                .select_related(
+                    "complaint",
+                    "mediator",
+                )
                 .all()
                 .order_by("-session_date")
             )
@@ -71,7 +123,10 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
         if user.role == "MEDIATOR":
             return (
                 MediationSession.objects
-                .select_related("complaint", "mediator")
+                .select_related(
+                    "complaint",
+                    "mediator",
+                )
                 .filter(mediator=user)
                 .order_by("-session_date")
             )
@@ -89,7 +144,9 @@ class HearingViewSet(viewsets.ModelViewSet):
         if user.role == "ADMIN":
             return (
                 Hearing.objects
-                .select_related("complaint", "committee")
+                .select_related(
+                    "complaint",
+                )
                 .all()
                 .order_by("-hearing_date")
             )
@@ -97,7 +154,10 @@ class HearingViewSet(viewsets.ModelViewSet):
         if user.role == "HEARING_OFFICER":
             return (
                 Hearing.objects
-                .select_related("complaint", "committee")
+                .select_related(
+                    "complaint",
+                    "committee",
+                )
                 .filter(
                     committee__chairperson=user
                 )
@@ -113,7 +173,17 @@ class HearingViewSet(viewsets.ModelViewSet):
 
 
 class HearingCommitteeViewSet(viewsets.ModelViewSet):
-    queryset = HearingCommittee.objects.all()
+    queryset = (
+        HearingCommittee.objects
+        .select_related(
+            "hearing",
+            "chairperson",
+            "member_two",
+            "member_three",
+        )
+        .all()
+    )
+
     serializer_class = HearingCommitteeSerializer
     permission_classes = [IsAdminOrHearingOfficer]
 
@@ -162,6 +232,7 @@ class AwardReviewViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-application_date")
     )
+
     serializer_class = AwardReviewSerializer
     permission_classes = [IsAdminOrOfficer]
 
@@ -175,6 +246,7 @@ class EnforcementCaseViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-issue_date")
     )
+
     serializer_class = EnforcementCaseSerializer
     permission_classes = [IsAdminOrOfficer]
 
@@ -189,6 +261,7 @@ class CostTaxationViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-filing_date")
     )
+
     serializer_class = CostTaxationSerializer
     permission_classes = [IsAdminOrOfficer]
 
@@ -203,5 +276,6 @@ class CaseClosureViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-closure_date")
     )
+
     serializer_class = CaseClosureSerializer
     permission_classes = [IsAdminOrOfficer]
