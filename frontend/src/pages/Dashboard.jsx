@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api";
+import { getStoredUser } from "../services/authService";
 
 function Dashboard({ onNewComplaint }) {
   const [data, setData] = useState({
@@ -16,36 +17,97 @@ function Dashboard({ onNewComplaint }) {
 
   useEffect(() => {
     const loadDashboard = async () => {
-      try {
-        const responses = await Promise.allSettled([
-          api.get("complaints/"),
-          api.get("mediation-sessions/"),
-          api.get("hearings/"),
-          api.get("decision-awards/"),
-          api.get("enforcement-cases/"),
-          api.get("case-closures/"),
-        ]);
+      const user = getStoredUser();
+      const role = user?.role;
 
-        setData({
-          complaints: getResponseData(responses[0]),
-          mediationSessions: getResponseData(responses[1]),
-          hearings: getResponseData(responses[2]),
-          decisionAwards: getResponseData(responses[3]),
-          enforcementCases: getResponseData(responses[4]),
-          caseClosures: getResponseData(responses[5]),
+      const requests = [];
+
+      if (role === "ADMIN" || role === "OFFICER") {
+        requests.push({
+          key: "complaints",
+          request: api.get("complaints/"),
         });
 
-        if (
-          responses.some(
-            (response) => response.status === "rejected"
-          )
-        ) {
+        requests.push({
+          key: "enforcementCases",
+          request: api.get("enforcement-cases/"),
+        });
+
+        requests.push({
+          key: "caseClosures",
+          request: api.get("case-closures/"),
+        });
+      }
+
+      if (role === "ADMIN" || role === "MEDIATOR") {
+        requests.push({
+          key: "mediationSessions",
+          request: api.get("mediation-sessions/"),
+        });
+      }
+
+      if (
+        role === "ADMIN" ||
+        role === "HEARING_OFFICER"
+      ) {
+        requests.push({
+          key: "hearings",
+          request: api.get("hearings/"),
+        });
+
+        requests.push({
+          key: "decisionAwards",
+          request: api.get("decision-awards/"),
+        });
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          requests.map((item) => item.request)
+        );
+
+        const newData = {
+          complaints: [],
+          mediationSessions: [],
+          hearings: [],
+          decisionAwards: [],
+          enforcementCases: [],
+          caseClosures: [],
+        };
+
+        let hasError = false;
+
+        results.forEach((result, index) => {
+          const key = requests[index].key;
+
+          if (result.status === "fulfilled") {
+            newData[key] = getResponseData(result);
+          } else {
+            console.error(
+              "Dashboard request failed:",
+              key,
+              result.reason
+            );
+
+            hasError = true;
+          }
+        });
+
+        setData(newData);
+
+        if (hasError) {
           setError(
             "Some dashboard information could not be loaded."
           );
+        } else {
+          setError("");
         }
       } catch (err) {
-        console.error(err);
+        console.error(
+          "Dashboard loading error:",
+          err
+        );
+
         setError(
           "Unable to load dashboard information."
         );
@@ -61,7 +123,8 @@ function Dashboard({ onNewComplaint }) {
     {
       title: "Total Complaints",
       value: data.complaints.length,
-      description: "Complaints registered in the system",
+      description:
+        "Complaints registered in the system",
       icon: "◆",
       className: "blue",
     },
@@ -82,7 +145,8 @@ function Dashboard({ onNewComplaint }) {
     {
       title: "Decisions & Awards",
       value: data.decisionAwards.length,
-      description: "Decisions and awards issued",
+      description:
+        "Decisions and awards issued",
       icon: "◆",
       className: "green",
     },
@@ -96,7 +160,8 @@ function Dashboard({ onNewComplaint }) {
     {
       title: "Closed Cases",
       value: data.caseClosures.length,
-      description: "Successfully completed cases",
+      description:
+        "Successfully completed cases",
       icon: "✓",
       className: "teal",
     },
@@ -104,17 +169,11 @@ function Dashboard({ onNewComplaint }) {
 
   return (
     <div className="dashboard-page">
-
-      {/* HEADER */}
       <div className="page-heading">
         <div>
-          <p className="welcome">
-            SYSTEM OVERVIEW
-          </p>
+          <p className="welcome">SYSTEM OVERVIEW</p>
 
-          <h1>
-            Dashboard
-          </h1>
+          <h1>Dashboard</h1>
 
           <p className="subtitle">
             Monitor and manage complaint cases
@@ -131,7 +190,6 @@ function Dashboard({ onNewComplaint }) {
         </button>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div className="error-banner">
           <strong>Notice</strong>
@@ -139,18 +197,15 @@ function Dashboard({ onNewComplaint }) {
         </div>
       )}
 
-      {/* STATISTICS */}
       <div className="stats-grid">
-
         {stats.map((stat) => (
           <div
             className="stat-card"
             key={stat.title}
           >
             <div className="stat-top">
-
               <div
-                className={`stat-icon ${stat.className}`}
+                className={"stat-icon " + stat.className}
               >
                 {stat.icon}
               </div>
@@ -158,7 +213,6 @@ function Dashboard({ onNewComplaint }) {
               <span className="stat-arrow">
                 →
               </span>
-
             </div>
 
             <h3>
@@ -174,21 +228,13 @@ function Dashboard({ onNewComplaint }) {
             </p>
           </div>
         ))}
-
       </div>
 
-      {/* MAIN CONTENT */}
       <div className="dashboard-grid">
-
-        {/* RECENT CASES */}
         <section className="panel cases-panel">
-
           <div className="panel-header">
-
             <div>
-              <h2>
-                Recent Cases
-              </h2>
+              <h2>Recent Cases</h2>
 
               <p>
                 Latest complaints registered
@@ -203,13 +249,10 @@ function Dashboard({ onNewComplaint }) {
             >
               View all →
             </button>
-
           </div>
 
           <div className="table-container">
-
             <table>
-
               <thead>
                 <tr>
                   <th>Case Number</th>
@@ -221,7 +264,6 @@ function Dashboard({ onNewComplaint }) {
               </thead>
 
               <tbody>
-
                 {loading ? (
                   <tr>
                     <td
@@ -232,12 +274,10 @@ function Dashboard({ onNewComplaint }) {
                     </td>
                   </tr>
                 ) : data.complaints.length > 0 ? (
-
                   data.complaints
                     .slice(0, 5)
                     .map((complaint) => (
                       <tr key={complaint.id}>
-
                         <td>
                           <strong>
                             {complaint.case_number}
@@ -259,9 +299,12 @@ function Dashboard({ onNewComplaint }) {
 
                         <td>
                           <span
-                            className={`status ${String(
-                              complaint.status || ""
-                            ).toLowerCase()}`}
+                            className={
+                              "status " +
+                              String(
+                                complaint.status || ""
+                              ).toLowerCase()
+                            }
                           >
                             {formatStatus(
                               complaint.status
@@ -274,12 +317,9 @@ function Dashboard({ onNewComplaint }) {
                             complaint.created_at
                           )}
                         </td>
-
                       </tr>
                     ))
-
                 ) : (
-
                   <tr>
                     <td
                       colSpan="5"
@@ -289,36 +329,24 @@ function Dashboard({ onNewComplaint }) {
                       registered yet.
                     </td>
                   </tr>
-
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </section>
 
-        {/* CASE WORKFLOW */}
         <section className="panel progress-panel">
-
           <div className="panel-header">
-
             <div>
-              <h2>
-                Case Workflow
-              </h2>
+              <h2>Case Workflow</h2>
 
               <p>
                 Complaint settlement process
               </p>
             </div>
-
           </div>
 
           <div className="progress-list">
-
             <ProgressItem
               number="01"
               title="Complaint"
@@ -370,18 +398,12 @@ function Dashboard({ onNewComplaint }) {
                 data.caseClosures.length > 0
               }
             />
-
           </div>
-
         </section>
-
       </div>
 
-      {/* WORKFLOW OVERVIEW */}
       <section className="panel overview">
-
         <div className="panel-header">
-
           <div>
             <h2>
               Case Management Workflow
@@ -392,11 +414,9 @@ function Dashboard({ onNewComplaint }) {
               from registration to closure
             </p>
           </div>
-
         </div>
 
         <div className="workflow">
-
           <WorkflowStep
             number="01"
             title="Complaint"
@@ -442,32 +462,25 @@ function Dashboard({ onNewComplaint }) {
             title="Closure"
             description="Completion"
           />
-
         </div>
-
       </section>
-
     </div>
   );
 }
-
-/* ----------------------------- */
-/* HELPER FUNCTIONS               */
-/* ----------------------------- */
 
 function getResponseData(response) {
   if (response.status !== "fulfilled") {
     return [];
   }
 
-  const data = response.value?.data;
+  const responseData = response.value?.data;
 
-  if (Array.isArray(data)) {
-    return data;
+  if (Array.isArray(responseData)) {
+    return responseData;
   }
 
-  if (Array.isArray(data?.results)) {
-    return data.results;
+  if (Array.isArray(responseData?.results)) {
+    return responseData.results;
   }
 
   return [];
@@ -519,10 +532,6 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
-/* ----------------------------- */
-/* WORKFLOW COMPONENTS            */
-/* ----------------------------- */
-
 function ProgressItem({
   number,
   title,
@@ -531,25 +540,20 @@ function ProgressItem({
 }) {
   return (
     <div
-      className={`progress-item ${
-        completed ? "completed" : ""
-      }`}
+      className={
+        "progress-item " +
+        (completed ? "completed" : "")
+      }
     >
-
       <div className="progress-number">
         {completed ? "✓" : number}
       </div>
 
       <div>
-        <strong>
-          {title}
-        </strong>
+        <strong>{title}</strong>
 
-        <span>
-          {description}
-        </span>
+        <span>{description}</span>
       </div>
-
     </div>
   );
 }
@@ -561,27 +565,17 @@ function WorkflowStep({
 }) {
   return (
     <div className="workflow-step">
+      <span>{number}</span>
 
-      <span>
-        {number}
-      </span>
+      <strong>{title}</strong>
 
-      <strong>
-        {title}
-      </strong>
-
-      <small>
-        {description}
-      </small>
-
+      <small>{description}</small>
     </div>
   );
 }
 
 function WorkflowLine() {
-  return (
-    <div className="workflow-line"></div>
-  );
+  return <div className="workflow-line"></div>;
 }
 
 export default Dashboard;

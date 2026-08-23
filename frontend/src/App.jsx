@@ -1,21 +1,31 @@
 import { useState } from "react";
 import "./App.css";
 
-import {
-  getStoredUser,
-  logout,
-} from "./services/authService";
-
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Complaints from "./pages/Complaints";
 import Mediation from "./pages/Mediation";
 import Hearings from "./pages/Hearings";
 
-function App() {
-  const user = getStoredUser();
-  const userRole = user?.role || null;
+import {
+  getStoredUser,
+  isAuthenticated,
+  logout,
+} from "./services/authService";
 
-  const [activePage, setActivePage] = useState("Dashboard");
+function App() {
+  const [authenticated, setAuthenticated] = useState(
+    isAuthenticated()
+  );
+
+  const [user, setUser] = useState(
+    getStoredUser()
+  );
+
+  const [activePage, setActivePage] =
+    useState("Dashboard");
+
+  const userRole = user?.role || null;
 
   const navigation = [
     {
@@ -35,7 +45,6 @@ function App() {
       roles: [
         "ADMIN",
         "OFFICER",
-        "CASE_OFFICER",
       ],
     },
     {
@@ -43,7 +52,6 @@ function App() {
       icon: "◉",
       roles: [
         "ADMIN",
-        "OFFICER",
         "CASE_OFFICER",
       ],
     },
@@ -52,8 +60,6 @@ function App() {
       icon: "⚖",
       roles: [
         "ADMIN",
-        "OFFICER",
-        "CASE_OFFICER",
         "MEDIATOR",
       ],
     },
@@ -62,8 +68,6 @@ function App() {
       icon: "▣",
       roles: [
         "ADMIN",
-        "OFFICER",
-        "CASE_OFFICER",
         "HEARING_OFFICER",
       ],
     },
@@ -72,7 +76,6 @@ function App() {
       icon: "◆",
       roles: [
         "ADMIN",
-        "OFFICER",
         "HEARING_OFFICER",
       ],
     },
@@ -106,7 +109,6 @@ function App() {
       roles: [
         "ADMIN",
         "OFFICER",
-        "CASE_OFFICER",
       ],
     },
     {
@@ -117,7 +119,8 @@ function App() {
   ];
 
   const visibleNavigation = navigation.filter(
-    (item) => item.roles.includes(userRole)
+    (item) =>
+      item.roles.includes(userRole)
   );
 
   const getRoleName = () => {
@@ -142,9 +145,17 @@ function App() {
     }
   };
 
+  const handleLogin = (loggedInUser) => {
+    setUser(loggedInUser);
+    setAuthenticated(true);
+    setActivePage("Dashboard");
+  };
+
   const handleLogout = () => {
     logout();
-    window.location.href = "/";
+    setUser(null);
+    setAuthenticated(false);
+    setActivePage("Dashboard");
   };
 
   const handleNewComplaint = () => {
@@ -156,7 +167,9 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
 
@@ -228,11 +241,25 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
     }
   };
+
+  /*
+   * Authentication gate.
+   * No valid login = login page only.
+   */
+  if (!authenticated || !user) {
+    return (
+      <Login
+        onLogin={handleLogin}
+      />
+    );
+  }
 
   return (
     <div className="app">
@@ -248,7 +275,10 @@ function App() {
 
           <div>
             <h2>PDPC-CMS</h2>
-            <span>Complaint Management</span>
+
+            <span>
+              Complaint Management
+            </span>
           </div>
 
         </div>
@@ -258,24 +288,37 @@ function App() {
         </div>
 
         <nav>
-          {visibleNavigation.map((item) => (
-            <button
-              key={item.name}
-              type="button"
-              className={`nav-item ${
-                activePage === item.name
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() => setActivePage(item.name)}
-            >
-              <span className="nav-icon">
-                {item.icon}
-              </span>
 
-              <span>{item.name}</span>
-            </button>
-          ))}
+          {visibleNavigation.map(
+            (item) => (
+              <button
+                key={item.name}
+                type="button"
+                className={`nav-item ${
+                  activePage ===
+                  item.name
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setActivePage(
+                    item.name
+                  )
+                }
+              >
+
+                <span className="nav-icon">
+                  {item.icon}
+                </span>
+
+                <span>
+                  {item.name}
+                </span>
+
+              </button>
+            )
+          )}
+
         </nav>
 
         <div className="sidebar-bottom">
@@ -283,13 +326,19 @@ function App() {
           <button
             type="button"
             className="nav-item"
-            onClick={() => setActivePage("Settings")}
+            onClick={() =>
+              setActivePage("Settings")
+            }
           >
+
             <span className="nav-icon">
               ⚙
             </span>
 
-            <span>Settings</span>
+            <span>
+              Settings
+            </span>
+
           </button>
 
           <button
@@ -297,11 +346,15 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
+
             <span className="nav-icon">
               ↪
             </span>
 
-            <span>Logout</span>
+            <span>
+              Logout
+            </span>
+
           </button>
 
         </div>
@@ -317,7 +370,8 @@ function App() {
           <div className="breadcrumb">
 
             <span>
-              Personal Data Protection Commission
+              Personal Data Protection
+              Commission
             </span>
 
             <strong>/</strong>
@@ -375,9 +429,11 @@ function App() {
 
         </header>
 
-        {/* PAGE CONTENT */}
+        {/* CONTENT */}
         <section className="content">
+
           {renderPage()}
+
         </section>
 
       </main>
@@ -393,19 +449,17 @@ function ModulePlaceholder({
   return (
     <div className="module-page">
 
-      <div className="module-heading">
+      <div className="page-heading">
 
         <div>
 
-          <span className="module-eyebrow">
+          <p className="welcome">
             CASE MANAGEMENT SYSTEM
-          </span>
+          </p>
 
-          <h1>
-            {title}
-          </h1>
+          <h1>{title}</h1>
 
-          <p>
+          <p className="subtitle">
             {description}
           </p>
 
@@ -426,9 +480,8 @@ function ModulePlaceholder({
           </h2>
 
           <p>
-            This module will be connected to
-            its Django API as part of the
-            case-management workflow.
+            This module is ready for
+            its Django API integration.
           </p>
 
         </div>
