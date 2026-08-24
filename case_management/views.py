@@ -234,38 +234,70 @@ class HearingViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.role == "ADMIN":
-            return (
-                Hearing.objects
-                .select_related(
-                    "complaint",
-                    "committee",
-                )
-                .all()
-                .order_by("-hearing_date")
+        queryset = (
+            Hearing.objects
+            .select_related(
+                "complaint",
+                "committee",
             )
+            .all()
+            .order_by(
+                "-hearing_date",
+                "-start_time",
+            )
+        )
+
+        if user.role == "ADMIN":
+            return queryset
 
         if user.role == "HEARING_OFFICER":
             return (
-                Hearing.objects
-                .select_related(
-                    "complaint",
-                    "committee",
-                )
-                .filter(
+                queryset.filter(
                     committee__chairperson=user
                 )
-                | Hearing.objects.filter(
+                | queryset.filter(
                     committee__member_two=user
                 )
-                | Hearing.objects.filter(
+                | queryset.filter(
                     committee__member_three=user
                 )
-            ).distinct().order_by(
-                "-hearing_date"
-            )
+            ).distinct()
 
         return Hearing.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(
+            status=Hearing.Status.SCHEDULED
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-complaints",
+    )
+    def available_complaints(self, request):
+        complaints = (
+            Complaint.objects
+            .filter(
+                status=Complaint.Status.HEARING
+            )
+            .order_by("-updated_at")
+        )
+
+        data = [
+            {
+                "id": complaint.id,
+                "case_number": complaint.case_number,
+                "title": complaint.title,
+                "status": complaint.status,
+            }
+            for complaint in complaints
+        ]
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class HearingCommitteeViewSet(viewsets.ModelViewSet):

@@ -263,9 +263,118 @@ class MediationSessionSerializer(serializers.ModelSerializer):
 
 
 class HearingSerializer(serializers.ModelSerializer):
+    complaint_case_number = serializers.CharField(
+        source="complaint.case_number",
+        read_only=True,
+    )
+
+    complaint_title = serializers.CharField(
+        source="complaint.title",
+        read_only=True,
+    )
+
     class Meta:
         model = Hearing
-        fields = "__all__"
+        fields = [
+            "id",
+            "complaint",
+            "complaint_case_number",
+            "complaint_title",
+            "hearing_date",
+            "start_time",
+            "end_time",
+            "location",
+            "status",
+            "proceedings",
+            "adjournment_reason",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "complaint_case_number",
+            "complaint_title",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        instance = self.instance
+
+        complaint = attrs.get(
+            "complaint",
+            instance.complaint if instance else None,
+        )
+
+        status = attrs.get(
+            "status",
+            instance.status
+            if instance
+            else Hearing.Status.SCHEDULED,
+        )
+
+        start_time = attrs.get(
+            "start_time",
+            instance.start_time if instance else None,
+        )
+
+        end_time = attrs.get(
+            "end_time",
+            instance.end_time if instance else None,
+        )
+
+        proceedings = attrs.get(
+            "proceedings",
+            instance.proceedings if instance else "",
+        )
+
+        adjournment_reason = attrs.get(
+            "adjournment_reason",
+            instance.adjournment_reason
+            if instance
+            else "",
+        )
+
+        if complaint is not None:
+            if complaint.status != Complaint.Status.HEARING:
+                raise serializers.ValidationError({
+                    "complaint": (
+                        "A hearing can only be scheduled for "
+                        "a complaint currently in the "
+                        "HEARING stage."
+                    )
+                })
+
+        if start_time and end_time:
+            if end_time <= start_time:
+                raise serializers.ValidationError({
+                    "end_time": (
+                        "End time must be later than start time."
+                    )
+                })
+
+        if status == Hearing.Status.COMPLETED:
+            if not proceedings or not proceedings.strip():
+                raise serializers.ValidationError({
+                    "proceedings": (
+                        "Completed hearings must contain "
+                        "proceedings notes."
+                    )
+                })
+
+        if status == Hearing.Status.ADJOURNED:
+            if (
+                not adjournment_reason
+                or not adjournment_reason.strip()
+            ):
+                raise serializers.ValidationError({
+                    "adjournment_reason": (
+                        "An adjournment reason is required "
+                        "when a hearing is adjourned."
+                    )
+                })
+
+        return attrs
 
 
 class HearingCommitteeSerializer(serializers.ModelSerializer):
