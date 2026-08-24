@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -37,6 +39,9 @@ from .permissions import (
 )
 
 
+User = get_user_model()
+
+
 class RespondentResponseViewSet(viewsets.ModelViewSet):
     serializer_class = RespondentResponseSerializer
     permission_classes = [IsAdminOrCaseOfficer]
@@ -67,9 +72,7 @@ class RespondentResponseViewSet(viewsets.ModelViewSet):
     def available_complaints(self, request):
         complaints = (
             Complaint.objects
-            .select_related(
-                "respondent",
-            )
+            .select_related("respondent")
             .filter(
                 status__in=[
                     Complaint.Status.NOTICE_SENT,
@@ -109,29 +112,119 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.role == "ADMIN":
-            return (
-                MediationSession.objects
-                .select_related(
-                    "complaint",
-                    "mediator",
-                )
-                .all()
-                .order_by("-session_date")
+        queryset = (
+            MediationSession.objects
+            .select_related(
+                "complaint",
+                "mediator",
             )
+            .all()
+            .order_by(
+                "-session_date",
+                "-start_time",
+            )
+        )
+
+        if user.role == "ADMIN":
+            return queryset
 
         if user.role == "MEDIATOR":
-            return (
-                MediationSession.objects
-                .select_related(
-                    "complaint",
-                    "mediator",
-                )
-                .filter(mediator=user)
-                .order_by("-session_date")
+            return queryset.filter(
+                mediator=user
             )
 
         return MediationSession.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if user.role == "MEDIATOR":
+            serializer.save(
+                mediator=user,
+                status=MediationSession.Status.SCHEDULED,
+                outcome=MediationSession.Outcome.PENDING,
+            )
+        else:
+            serializer.save(
+                status=MediationSession.Status.SCHEDULED,
+                outcome=MediationSession.Outcome.PENDING,
+            )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-complaints",
+    )
+    def available_complaints(self, request):
+        complaints = (
+            Complaint.objects
+            .filter(
+                status=Complaint.Status.MEDIATION
+            )
+            .order_by("-updated_at")
+        )
+
+        data = [
+            {
+                "id": complaint.id,
+                "case_number": complaint.case_number,
+                "title": complaint.title,
+                "status": complaint.status,
+            }
+            for complaint in complaints
+        ]
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-mediators",
+    )
+    def available_mediators(self, request):
+        if request.user.role != "ADMIN":
+            return Response(
+                {
+                    "detail": (
+                        "Only administrators can list "
+                        "available mediators."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        mediators = (
+            User.objects
+            .filter(
+                role="MEDIATOR",
+                is_active=True,
+            )
+            .order_by(
+                "first_name",
+                "last_name",
+                "username",
+            )
+        )
+
+        data = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "name": (
+                    user.get_full_name()
+                    or user.username
+                ),
+            }
+            for user in mediators
+        ]
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class HearingViewSet(viewsets.ModelViewSet):
@@ -146,6 +239,7 @@ class HearingViewSet(viewsets.ModelViewSet):
                 Hearing.objects
                 .select_related(
                     "complaint",
+                    "committee",
                 )
                 .all()
                 .order_by("-hearing_date")
@@ -167,7 +261,9 @@ class HearingViewSet(viewsets.ModelViewSet):
                 | Hearing.objects.filter(
                     committee__member_three=user
                 )
-            ).distinct().order_by("-hearing_date")
+            ).distinct().order_by(
+                "-hearing_date"
+            )
 
         return Hearing.objects.none()
 

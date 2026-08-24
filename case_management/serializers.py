@@ -179,34 +179,79 @@ class MediationSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MediationSession
         fields = "__all__"
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         instance = self.instance
 
+        complaint = attrs.get(
+            "complaint",
+            instance.complaint if instance else None,
+        )
+
+        mediator = attrs.get(
+            "mediator",
+            instance.mediator if instance else None,
+        )
+
         status = attrs.get(
             "status",
-            instance.status if instance else None
+            instance.status
+            if instance
+            else MediationSession.Status.SCHEDULED,
         )
 
         outcome = attrs.get(
             "outcome",
-            instance.outcome if instance else None
+            instance.outcome
+            if instance
+            else MediationSession.Outcome.PENDING,
         )
 
-        if status == "COMPLETED" and outcome == "PENDING":
-            raise serializers.ValidationError({
-                "outcome": (
-                    "A mediation session cannot be completed "
-                    "while the outcome is still pending."
-                )
-            })
+        if complaint is not None:
+            if complaint.status != Complaint.Status.MEDIATION:
+                raise serializers.ValidationError({
+                    "complaint": (
+                        "A mediation session can only be created "
+                        "for a complaint currently in the "
+                        "MEDIATION stage."
+                    )
+                })
+
+        if mediator is not None:
+            if mediator.role != "MEDIATOR":
+                raise serializers.ValidationError({
+                    "mediator": (
+                        "The selected user is not authorized "
+                        "to conduct mediation."
+                    )
+                })
+
+            if not mediator.is_active:
+                raise serializers.ValidationError({
+                    "mediator": (
+                        "The selected mediator account is inactive."
+                    )
+                })
+
+        if status == MediationSession.Status.COMPLETED:
+            if outcome == MediationSession.Outcome.PENDING:
+                raise serializers.ValidationError({
+                    "outcome": (
+                        "A mediation session cannot be completed "
+                        "while the outcome is still pending."
+                    )
+                })
 
         if outcome in {
-            "SETTLED",
-            "PARTIALLY_SETTLED",
-            "FAILED",
+            MediationSession.Outcome.SETTLED,
+            MediationSession.Outcome.PARTIALLY_SETTLED,
+            MediationSession.Outcome.FAILED,
         }:
-            if status != "COMPLETED":
+            if status != MediationSession.Status.COMPLETED:
                 raise serializers.ValidationError({
                     "status": (
                         "A mediation outcome can only be recorded "
@@ -268,7 +313,6 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
-
         new_status = attrs.get("status")
 
         if new_status is None:
@@ -295,12 +339,12 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
         if new_status == EnforcementCase.Status.COMPLIED:
             amount_due = attrs.get(
                 "amount_due",
-                instance.amount_due
+                instance.amount_due,
             )
 
             amount_paid = attrs.get(
                 "amount_paid",
-                instance.amount_paid
+                instance.amount_paid,
             )
 
             if (
@@ -311,7 +355,8 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "amount_paid": (
                         "The enforcement case cannot be marked "
-                        "COMPLIED until the full amount due has been paid."
+                        "COMPLIED until the full amount due has "
+                        "been paid."
                     )
                 })
 
@@ -364,7 +409,7 @@ class CaseClosureSerializer(serializers.ModelSerializer):
         decision_award = getattr(
             complaint,
             "decision_award",
-            None
+            None,
         )
 
         if decision_award is None:
