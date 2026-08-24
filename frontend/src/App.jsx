@@ -11,6 +11,7 @@ import DecisionAwards from "./pages/DecisionAwards";
 import AwardReviews from "./pages/AwardReviews";
 import Enforcement from "./pages/Enforcement";
 import CostTaxation from "./pages/CostTaxation";
+import CaseClosure from "./pages/CaseClosure";
 
 import {
   getStoredUser,
@@ -47,52 +48,81 @@ function App() {
     {
       name: "Complaints",
       icon: "◈",
-      roles: ["ADMIN", "OFFICER"],
+      roles: [
+        "ADMIN",
+        "OFFICER",
+      ],
     },
     {
       name: "Respondent Responses",
       icon: "◉",
-      roles: ["ADMIN", "CASE_OFFICER"],
+      roles: [
+        "ADMIN",
+        "CASE_OFFICER",
+      ],
     },
     {
       name: "Mediation",
       icon: "⚖",
-      roles: ["ADMIN", "MEDIATOR"],
+      roles: [
+        "ADMIN",
+        "MEDIATOR",
+      ],
     },
     {
       name: "Hearings",
       icon: "▣",
-      roles: ["ADMIN", "HEARING_OFFICER"],
+      roles: [
+        "ADMIN",
+        "HEARING_OFFICER",
+      ],
     },
     {
       name: "Decision & Awards",
       icon: "◆",
-      roles: ["ADMIN", "HEARING_OFFICER"],
+      roles: [
+        "ADMIN",
+        "HEARING_OFFICER",
+      ],
     },
     {
       name: "Award Reviews",
       icon: "↻",
-      roles: ["ADMIN", "OFFICER"],
+      roles: [
+        "ADMIN",
+        "OFFICER",
+      ],
     },
     {
       name: "Enforcement",
       icon: "◈",
-      roles: ["ADMIN", "OFFICER"],
+      roles: [
+        "ADMIN",
+        "OFFICER",
+      ],
     },
     {
       name: "Cost Taxation",
       icon: "▰",
-      roles: ["ADMIN", "OFFICER"],
+      roles: [
+        "ADMIN",
+        "OFFICER",
+      ],
     },
     {
       name: "Case Closure",
       icon: "✓",
-      roles: ["ADMIN", "OFFICER"],
+      roles: [
+        "ADMIN",
+        "OFFICER",
+      ],
     },
     {
       name: "User Management",
       icon: "♙",
-      roles: ["ADMIN"],
+      roles: [
+        "ADMIN",
+      ],
     },
   ];
 
@@ -105,14 +135,19 @@ function App() {
     switch (userRole) {
       case "ADMIN":
         return "System Administrator";
+
       case "OFFICER":
         return "Commission Officer";
+
       case "CASE_OFFICER":
         return "Case Officer";
+
       case "MEDIATOR":
         return "Mediator";
+
       case "HEARING_OFFICER":
         return "Hearing Officer";
+
       default:
         return "User";
     }
@@ -169,12 +204,7 @@ function App() {
         return <CostTaxation />;
 
       case "Case Closure":
-        return (
-          <ModulePlaceholder
-            title="Case Closure"
-            description="Manage completed cases and closure records."
-          />
-        );
+        return <CaseClosure />;
 
       case "User Management":
         return (
@@ -320,7 +350,9 @@ function App() {
               Commission
             </span>
 
-            <strong>/</strong>
+            <strong>
+              /
+            </strong>
 
             <span className="current">
               {activePage}

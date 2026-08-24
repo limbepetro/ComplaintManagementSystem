@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.decorators import action
 
 from complaints.models import Complaint
 
@@ -541,14 +542,52 @@ class CostTaxationViewSet(viewsets.ModelViewSet):
 
 
 class CaseClosureViewSet(viewsets.ModelViewSet):
-    queryset = (
-        CaseClosure.objects
-        .select_related(
-            "complaint",
-            "closed_by",
-        )
-        .all()
-        .order_by("-closure_date")
-    )
     serializer_class = CaseClosureSerializer
     permission_classes = [IsAdminOrOfficer]
+
+    def get_queryset(self):
+        return (
+            CaseClosure.objects
+            .select_related(
+                "complaint",
+                "closed_by",
+            )
+            .all()
+            .order_by("-closure_date")
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            closed_by=self.request.user
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-cases",
+    )
+    def available_cases(self, request):
+        complaints = (
+            Complaint.objects
+            .filter(
+                status=Complaint.Status.ENFORCEMENT,
+                decision_award__enforcement_cases__status=(
+                    EnforcementCase.Status.COMPLETED
+                ),
+            )
+            .exclude(
+                closure__isnull=False
+            )
+            .distinct()
+            .order_by("-updated_at")
+        )
+
+        return Response([
+            {
+                "id": complaint.id,
+                "case_number": complaint.case_number,
+                "title": complaint.title,
+                "status": complaint.status,
+            }
+            for complaint in complaints
+        ])

@@ -912,22 +912,47 @@ class CostTaxationSerializer(serializers.ModelSerializer):
 class CaseClosureSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseClosure
-        fields = "__all__"
+        fields = [
+            "id",
+            "complaint",
+            "closure_reference",
+            "closure_date",
+            "reason",
+            "summary",
+            "closed_by",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "closed_by",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
-        complaint = attrs.get("complaint")
+        instance = self.instance
 
-        if complaint is None and self.instance:
-            complaint = self.instance.complaint
+        complaint = attrs.get(
+            "complaint",
+            instance.complaint
+            if instance
+            else None,
+        )
 
         if complaint is None:
-            return attrs
+            raise serializers.ValidationError({
+                "complaint": (
+                    "A complaint is required."
+                )
+            })
 
         if complaint.status != Complaint.Status.ENFORCEMENT:
             raise serializers.ValidationError({
                 "complaint": (
-                    "A case can only be closed when the complaint "
-                    "is in the ENFORCEMENT stage."
+                    "A case can only be closed when "
+                    "the complaint is in the ENFORCEMENT stage."
                 )
             })
 
@@ -940,18 +965,35 @@ class CaseClosureSerializer(serializers.ModelSerializer):
         if decision_award is None:
             raise serializers.ValidationError({
                 "complaint": (
-                    "A case cannot be closed because it has "
-                    "no decision award."
+                    "The complaint has no decision and award."
                 )
             })
 
-        if not decision_award.enforcement_cases.filter(
-            status=EnforcementCase.Status.COMPLETED
-        ).exists():
+        completed_enforcement = (
+            decision_award.enforcement_cases.filter(
+                status=EnforcementCase.Status.COMPLETED
+            ).exists()
+        )
+
+        if not completed_enforcement:
             raise serializers.ValidationError({
                 "complaint": (
-                    "A case cannot be closed until enforcement "
-                    "has been completed."
+                    "The case cannot be closed until "
+                    "enforcement has been completed."
+                )
+            })
+
+        summary = attrs.get(
+            "summary",
+            instance.summary
+            if instance
+            else "",
+        )
+
+        if not summary or not summary.strip():
+            raise serializers.ValidationError({
+                "summary": (
+                    "A closure summary is required."
                 )
             })
 
