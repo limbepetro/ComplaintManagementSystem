@@ -1775,3 +1775,111 @@ td {
   object-fit: contain;
   display: block;
 }
+
+/* ==============================
+   SETTINGS PAGE
+   ============================== */
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.settings-grid .module-panel {
+  min-width: 0;
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9edf5;
+}
+
+.settings-avatar {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  background: #1f5eff;
+  color: #fff;
+}
+
+.settings-profile h3 {
+  margin: 0 0 5px;
+  font-size: 18px;
+}
+
+.settings-profile p {
+  margin: 0;
+  color: #7b8496;
+  font-size: 13px;
+}
+
+.settings-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 22px 24px 24px;
+}
+
+.settings-field {
+  padding: 13px 14px;
+  border: 1px solid #e7ebf2;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.settings-field span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7b8496;
+}
+
+.settings-field strong {
+  display: block;
+  font-size: 14px;
+  color: #172033;
+  word-break: break-word;
+}
+
+.settings-grid .complaint-form {
+  padding: 0 24px 24px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.field-help {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #7b8496;
+}
+
+@media (max-width: 900px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .settings-fields {
+    grid-template-columns: 1fr;
+  }
+}

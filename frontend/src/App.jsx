@@ -13,6 +13,7 @@ import Enforcement from "./pages/Enforcement";
 import CostTaxation from "./pages/CostTaxation";
 import CaseClosure from "./pages/CaseClosure";
 import UserManagement from "./pages/UserManagement";
+import Settings from "./pages/Settings";
 
 import {
   getStoredUser,
@@ -211,6 +212,9 @@ function App() {
 
       case "User Management":
         return <UserManagement />;
+
+      case "Settings":
+                    return <Settings />;
 
       default:
         return (
