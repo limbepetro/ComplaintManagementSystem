@@ -61,7 +61,6 @@ class RespondentResponseViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return RespondentResponseCreateSerializer
-
         return RespondentResponseSerializer
 
     @action(
@@ -108,15 +107,9 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
 
         queryset = (
             MediationSession.objects
-            .select_related(
-                "complaint",
-                "mediator",
-            )
+            .select_related("complaint", "mediator")
             .all()
-            .order_by(
-                "-session_date",
-                "-start_time",
-            )
+            .order_by("-session_date", "-start_time")
         )
 
         if user.role == "ADMIN":
@@ -208,15 +201,9 @@ class HearingViewSet(viewsets.ModelViewSet):
 
         queryset = (
             Hearing.objects
-            .select_related(
-                "complaint",
-                "committee",
-            )
+            .select_related("complaint", "committee")
             .all()
-            .order_by(
-                "-hearing_date",
-                "-start_time",
-            )
+            .order_by("-hearing_date", "-start_time")
         )
 
         if user.role == "ADMIN":
@@ -291,9 +278,7 @@ class DecisionAwardViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == "HEARING_OFFICER":
-            return queryset.filter(
-                issued_by=user
-            )
+            return queryset.filter(issued_by=user)
 
         return DecisionAward.objects.none()
 
@@ -358,18 +343,12 @@ class DecisionAwardViewSet(viewsets.ModelViewSet):
             )
 
         decision.status = DecisionAward.Status.ISSUED
-
         decision.save(
-            update_fields=[
-                "status",
-                "updated_at",
-            ]
+            update_fields=["status", "updated_at"]
         )
 
         return Response(
-            DecisionAwardSerializer(
-                decision
-            ).data
+            DecisionAwardSerializer(decision).data
         )
 
 
@@ -418,16 +397,11 @@ class AwardReviewViewSet(viewsets.ModelViewSet):
         return Response([
             {
                 "id": award.id,
-                "reference_number":
-                    award.reference_number,
-                "complaint_id":
-                    award.complaint_id,
-                "outcome":
-                    award.outcome,
-                "status":
-                    award.status,
-                "decision_date":
-                    award.decision_date,
+                "reference_number": award.reference_number,
+                "complaint_id": award.complaint_id,
+                "outcome": award.outcome,
+                "status": award.status,
+                "decision_date": award.decision_date,
             }
             for award in awards
         ])
@@ -477,20 +451,13 @@ class EnforcementCaseViewSet(viewsets.ModelViewSet):
         return Response([
             {
                 "id": award.id,
-                "reference_number":
-                    award.reference_number,
-                "complaint_id":
-                    award.complaint_id,
-                "case_number":
-                    award.complaint.case_number,
-                "outcome":
-                    award.outcome,
-                "status":
-                    award.status,
-                "award_amount":
-                    award.award_amount,
-                "costs_awarded":
-                    award.costs_awarded,
+                "reference_number": award.reference_number,
+                "complaint_id": award.complaint_id,
+                "case_number": award.complaint.case_number,
+                "outcome": award.outcome,
+                "status": award.status,
+                "award_amount": award.award_amount,
+                "costs_awarded": award.costs_awarded,
             }
             for award in awards
         ])
@@ -508,17 +475,69 @@ class EnforcementCaseViewSet(viewsets.ModelViewSet):
 
 
 class CostTaxationViewSet(viewsets.ModelViewSet):
-    queryset = (
-        CostTaxation.objects
-        .select_related(
-            "decision_award",
-            "applicant",
-        )
-        .all()
-        .order_by("-filing_date")
-    )
     serializer_class = CostTaxationSerializer
     permission_classes = [IsAdminOrOfficer]
+
+    def get_queryset(self):
+        return (
+            CostTaxation.objects
+            .select_related(
+                "decision_award",
+                "applicant",
+            )
+            .all()
+            .order_by("-filing_date")
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            applicant=self.request.user,
+            status=CostTaxation.Status.SUBMITTED,
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-awards",
+    )
+    def available_awards(self, request):
+        awards = (
+            DecisionAward.objects
+            .select_related("complaint")
+            .filter(
+                status__in=[
+                    DecisionAward.Status.ISSUED,
+                    DecisionAward.Status.FINAL,
+                    DecisionAward.Status.UNDER_REVIEW,
+                    DecisionAward.Status.ENFORCEMENT,
+                    DecisionAward.Status.CLOSED,
+                ]
+            )
+            .exclude(
+                cost_taxations__status__in=[
+                    CostTaxation.Status.SUBMITTED,
+                    CostTaxation.Status.UNDER_TAXATION,
+                ]
+            )
+            .order_by("-decision_date")
+        )
+
+        return Response([
+            {
+                "id": award.id,
+                "reference_number":
+                    award.reference_number,
+                "complaint_id":
+                    award.complaint_id,
+                "case_number":
+                    award.complaint.case_number,
+                "outcome":
+                    award.outcome,
+                "status":
+                    award.status,
+            }
+            for award in awards
+        ])
 
 
 class CaseClosureViewSet(viewsets.ModelViewSet):

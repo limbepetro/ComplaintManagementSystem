@@ -10,6 +10,7 @@ import Hearings from "./pages/Hearings";
 import DecisionAwards from "./pages/DecisionAwards";
 import AwardReviews from "./pages/AwardReviews";
 import Enforcement from "./pages/Enforcement";
+import CostTaxation from "./pages/CostTaxation";
 
 import {
   getStoredUser,
@@ -139,9 +140,7 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
 
@@ -167,12 +166,7 @@ function App() {
         return <Enforcement />;
 
       case "Cost Taxation":
-        return (
-          <ModulePlaceholder
-            title="Cost Taxation"
-            description="Manage bills of costs and taxation records."
-          />
-        );
+        return <CostTaxation />;
 
       case "Case Closure":
         return (
@@ -193,9 +187,7 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
     }
@@ -217,19 +209,25 @@ function App() {
         <div className="brand">
 
           <div className="brand-logo">
+
             <img
               src="/pdpc-logo.png"
               alt="PDPC Tanzania"
               className="brand-logo-image"
             />
+
           </div>
 
           <div>
-            <h2>PDPC-CMS</h2>
+
+            <h2>
+              PDPC-CMS
+            </h2>
 
             <span>
               Complaint Management
             </span>
+
           </div>
 
         </div>
@@ -242,6 +240,7 @@ function App() {
 
           {visibleNavigation.map(
             (item) => (
+
               <button
                 key={item.name}
                 type="button"
@@ -251,9 +250,7 @@ function App() {
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(
-                    item.name
-                  )
+                  setActivePage(item.name)
                 }
               >
 
@@ -266,6 +263,7 @@ function App() {
                 </span>
 
               </button>
+
             )
           )}
 
@@ -280,6 +278,7 @@ function App() {
               setActivePage("Settings")
             }
           >
+
             <span className="nav-icon">
               ⚙
             </span>
@@ -287,6 +286,7 @@ function App() {
             <span>
               Settings
             </span>
+
           </button>
 
           <button
@@ -294,6 +294,7 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
+
             <span className="nav-icon">
               ↪
             </span>
@@ -301,6 +302,7 @@ function App() {
             <span>
               Logout
             </span>
+
           </button>
 
         </div>
@@ -376,7 +378,9 @@ function App() {
         </header>
 
         <section className="content">
+
           {renderPage()}
+
         </section>
 
       </main>
