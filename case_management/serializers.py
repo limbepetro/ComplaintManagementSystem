@@ -325,7 +325,9 @@ class HearingSerializer(serializers.ModelSerializer):
 
         proceedings = attrs.get(
             "proceedings",
-            instance.proceedings if instance else "",
+            instance.proceedings
+            if instance
+            else "",
         )
 
         adjournment_reason = attrs.get(
@@ -384,9 +386,149 @@ class HearingCommitteeSerializer(serializers.ModelSerializer):
 
 
 class DecisionAwardSerializer(serializers.ModelSerializer):
+    VALID_TRANSITIONS = {
+        DecisionAward.Status.DRAFT: {
+            DecisionAward.Status.ISSUED,
+        },
+        DecisionAward.Status.ISSUED: {
+            DecisionAward.Status.UNDER_REVIEW,
+            DecisionAward.Status.FINAL,
+        },
+        DecisionAward.Status.UNDER_REVIEW: {
+            DecisionAward.Status.FINAL,
+            DecisionAward.Status.ENFORCEMENT,
+        },
+        DecisionAward.Status.FINAL: {
+            DecisionAward.Status.ENFORCEMENT,
+            DecisionAward.Status.CLOSED,
+        },
+        DecisionAward.Status.ENFORCEMENT: {
+            DecisionAward.Status.CLOSED,
+        },
+        DecisionAward.Status.CLOSED: set(),
+    }
+
     class Meta:
         model = DecisionAward
-        fields = "__all__"
+        fields = [
+            "id",
+            "complaint",
+            "hearing",
+            "reference_number",
+            "decision_date",
+            "outcome",
+            "status",
+            "findings",
+            "orders",
+            "reasons",
+            "award_amount",
+            "costs_awarded",
+            "issued_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "issued_by",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        instance = self.instance
+
+        complaint = attrs.get("complaint")
+        if complaint is None and instance is not None:
+            complaint = instance.complaint
+
+        hearing = attrs.get("hearing")
+        if hearing is None and instance is not None:
+            hearing = instance.hearing
+
+        if complaint is None:
+            raise serializers.ValidationError({
+                "complaint": "A complaint is required."
+            })
+
+        if hearing is None:
+            raise serializers.ValidationError({
+                "hearing": "A hearing is required."
+            })
+
+        if complaint.status != Complaint.Status.HEARING:
+            raise serializers.ValidationError({
+                "complaint": (
+                    "A decision and award can only be prepared "
+                    "for a complaint in the HEARING stage."
+                )
+            })
+
+        if hearing.complaint_id != complaint.id:
+            raise serializers.ValidationError({
+                "hearing": (
+                    "The selected hearing does not belong "
+                    "to the selected complaint."
+                )
+            })
+
+        if hearing.status != Hearing.Status.COMPLETED:
+            raise serializers.ValidationError({
+                "hearing": (
+                    "A decision and award can only be prepared "
+                    "after the hearing is completed."
+                )
+            })
+
+        new_status = attrs.get("status")
+
+        if new_status is None:
+            new_status = (
+                instance.status
+                if instance is not None
+                else DecisionAward.Status.DRAFT
+            )
+
+        if instance is not None:
+            current_status = instance.status
+
+            if new_status != current_status:
+                allowed_statuses = self.VALID_TRANSITIONS.get(
+                    current_status,
+                    set(),
+                )
+
+                if new_status not in allowed_statuses:
+                    raise serializers.ValidationError({
+                        "status": (
+                            f"Invalid decision status transition "
+                            f"from {current_status} to {new_status}."
+                        )
+                    })
+
+        if new_status in {
+            DecisionAward.Status.ISSUED,
+            DecisionAward.Status.FINAL,
+        }:
+            findings = attrs.get(
+                "findings",
+                instance.findings
+                if instance is not None
+                else "",
+            )
+
+            if not findings or not findings.strip():
+                raise serializers.ValidationError({
+                    "findings": (
+                        "Findings are required before the "
+                        "decision can be issued or finalized."
+                    )
+                })
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["status"] = DecisionAward.Status.DRAFT
+        return super().create(validated_data)
 
 
 class AwardReviewSerializer(serializers.ModelSerializer):

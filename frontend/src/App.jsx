@@ -7,6 +7,7 @@ import Complaints from "./pages/Complaints";
 import RespondentResponses from "./pages/RespondentResponses";
 import Mediation from "./pages/Mediation";
 import Hearings from "./pages/Hearings";
+import DecisionAwards from "./pages/DecisionAwards";
 
 import {
   getStoredUser,
@@ -170,7 +171,9 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
 
@@ -187,12 +190,7 @@ function App() {
         return <Hearings />;
 
       case "Decision & Awards":
-        return (
-          <ModulePlaceholder
-            title="Decision & Awards"
-            description="Manage decisions and awards issued during case proceedings."
-          />
-        );
+        return <DecisionAwards />;
 
       case "Award Reviews":
         return (
@@ -237,7 +235,9 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
     }
@@ -254,7 +254,6 @@ function App() {
   return (
     <div className="app">
 
-      {/* SIDEBAR */}
       <aside className="sidebar">
 
         <div className="brand">
@@ -278,6 +277,7 @@ function App() {
         </div>
 
         <nav>
+
           {visibleNavigation.map(
             (item) => (
               <button
@@ -289,9 +289,12 @@ function App() {
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(item.name)
+                  setActivePage(
+                    item.name
+                  )
                 }
               >
+
                 <span className="nav-icon">
                   {item.icon}
                 </span>
@@ -299,9 +302,11 @@ function App() {
                 <span>
                   {item.name}
                 </span>
+
               </button>
             )
           )}
+
         </nav>
 
         <div className="sidebar-bottom">
@@ -313,6 +318,7 @@ function App() {
               setActivePage("Settings")
             }
           >
+
             <span className="nav-icon">
               ⚙
             </span>
@@ -320,6 +326,7 @@ function App() {
             <span>
               Settings
             </span>
+
           </button>
 
           <button
@@ -327,6 +334,7 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
+
             <span className="nav-icon">
               ↪
             </span>
@@ -334,16 +342,15 @@ function App() {
             <span>
               Logout
             </span>
+
           </button>
 
         </div>
 
       </aside>
 
-      {/* MAIN */}
       <main className="main">
 
-        {/* TOP BAR */}
         <header className="topbar">
 
           <div className="breadcrumb">
@@ -353,7 +360,9 @@ function App() {
               Commission
             </span>
 
-            <strong>/</strong>
+            <strong>
+              /
+            </strong>
 
             <span className="current">
               {activePage}
@@ -375,6 +384,7 @@ function App() {
             <div className="profile">
 
               <div className="avatar">
+
                 {(
                   user?.first_name ||
                   user?.username ||
@@ -382,6 +392,7 @@ function App() {
                 )
                   .charAt(0)
                   .toUpperCase()}
+
               </div>
 
               <div className="profile-info">
@@ -408,9 +419,10 @@ function App() {
 
         </header>
 
-        {/* CONTENT */}
         <section className="content">
+
           {renderPage()}
+
         </section>
 
       </main>
