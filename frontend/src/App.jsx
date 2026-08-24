@@ -171,9 +171,7 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
 
@@ -235,9 +233,7 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={
-              handleNewComplaint
-            }
+            onNewComplaint={handleNewComplaint}
           />
         );
     }
@@ -259,7 +255,11 @@ function App() {
         <div className="brand">
 
           <div className="brand-logo">
-            C
+            <img
+              src="/pdpc-logo.png"
+              alt="PDPC Tanzania"
+              className="brand-logo-image"
+            />
           </div>
 
           <div>
@@ -318,7 +318,6 @@ function App() {
               setActivePage("Settings")
             }
           >
-
             <span className="nav-icon">
               ⚙
             </span>
@@ -326,7 +325,6 @@ function App() {
             <span>
               Settings
             </span>
-
           </button>
 
           <button
@@ -334,7 +332,6 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
-
             <span className="nav-icon">
               ↪
             </span>
@@ -342,7 +339,6 @@ function App() {
             <span>
               Logout
             </span>
-
           </button>
 
         </div>
@@ -420,9 +416,7 @@ function App() {
         </header>
 
         <section className="content">
-
           {renderPage()}
-
         </section>
 
       </main>
