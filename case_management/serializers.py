@@ -323,12 +323,16 @@ class HearingSerializer(serializers.ModelSerializer):
 
         proceedings = attrs.get(
             "proceedings",
-            instance.proceedings if instance else "",
+            instance.proceedings
+            if instance
+            else "",
         )
 
         adjournment_reason = attrs.get(
             "adjournment_reason",
-            instance.adjournment_reason if instance else "",
+            instance.adjournment_reason
+            if instance
+            else "",
         )
 
         if complaint is not None:
@@ -670,7 +674,6 @@ class AwardReviewSerializer(serializers.ModelSerializer):
         validated_data["outcome"] = (
             AwardReview.Outcome.PENDING
         )
-
         return super().create(validated_data)
 
 
@@ -697,45 +700,123 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EnforcementCase
-        fields = "__all__"
+        fields = [
+            "id",
+            "decision_award",
+            "enforcement_reference",
+            "issue_date",
+            "compliance_deadline",
+            "status",
+            "amount_due",
+            "amount_paid",
+            "enforcement_action",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         instance = self.instance
 
-        new_status = attrs.get("status")
-
-        if new_status is None:
-            return attrs
-
-        current_status = instance.status
-
-        if new_status == current_status:
-            return attrs
-
-        allowed_statuses = self.VALID_TRANSITIONS.get(
-            current_status,
-            set(),
+        decision_award = attrs.get(
+            "decision_award",
+            instance.decision_award
+            if instance is not None
+            else None,
         )
 
-        if new_status not in allowed_statuses:
+        if decision_award is None:
             raise serializers.ValidationError({
-                "status": (
-                    f"Invalid enforcement status transition "
-                    f"from {current_status} to {new_status}."
+                "decision_award": (
+                    "A decision and award is required."
                 )
             })
 
+        if decision_award.status not in [
+            DecisionAward.Status.ISSUED,
+            DecisionAward.Status.FINAL,
+            DecisionAward.Status.ENFORCEMENT,
+        ]:
+            raise serializers.ValidationError({
+                "decision_award": (
+                    "Enforcement can only begin for an "
+                    "issued, final, or enforcement-stage award."
+                )
+            })
+
+        new_status = attrs.get("status")
+
+        if instance is None:
+            new_status = (
+                new_status
+                or EnforcementCase.Status.PENDING
+            )
+
+            if new_status != EnforcementCase.Status.PENDING:
+                raise serializers.ValidationError({
+                    "status": (
+                        "A new enforcement case must start "
+                        "in PENDING status."
+                    )
+                })
+
+        else:
+            current_status = instance.status
+
+            if new_status is None:
+                new_status = current_status
+
+            if new_status != current_status:
+                allowed_statuses = self.VALID_TRANSITIONS.get(
+                    current_status,
+                    set(),
+                )
+
+                if new_status not in allowed_statuses:
+                    raise serializers.ValidationError({
+                        "status": (
+                            f"Invalid enforcement status "
+                            f"transition from {current_status} "
+                            f"to {new_status}."
+                        )
+                    })
+
+        amount_due = attrs.get(
+            "amount_due",
+            instance.amount_due
+            if instance is not None
+            else None,
+        )
+
+        amount_paid = attrs.get(
+            "amount_paid",
+            instance.amount_paid
+            if instance is not None
+            else 0,
+        )
+
+        if amount_due is not None and amount_paid is not None:
+            if amount_due < 0 or amount_paid < 0:
+                raise serializers.ValidationError({
+                    "amount_paid": (
+                        "Amounts cannot be negative."
+                    )
+                })
+
+            if amount_paid > amount_due and amount_due > 0:
+                raise serializers.ValidationError({
+                    "amount_paid": (
+                        "Amount paid cannot exceed the "
+                        "amount due."
+                    )
+                })
+
         if new_status == EnforcementCase.Status.COMPLIED:
-            amount_due = attrs.get(
-                "amount_due",
-                instance.amount_due,
-            )
-
-            amount_paid = attrs.get(
-                "amount_paid",
-                instance.amount_paid,
-            )
-
             if (
                 amount_due is not None
                 and amount_due > 0
@@ -744,8 +825,8 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "amount_paid": (
                         "The enforcement case cannot be marked "
-                        "COMPLIED until the full amount due has "
-                        "been paid."
+                        "COMPLIED until the full amount due "
+                        "has been paid."
                     )
                 })
 
@@ -755,16 +836,28 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
                 EnforcementCase.Status.NON_COMPLIANT,
             }
 
+            current_status = (
+                instance.status
+                if instance is not None
+                else EnforcementCase.Status.PENDING
+            )
+
             if current_status not in resolved_statuses:
                 raise serializers.ValidationError({
                     "status": (
-                        "An enforcement case can only be completed "
-                        "after compliance or a confirmed "
-                        "non-compliance resolution."
+                        "An enforcement case can only be "
+                        "completed after compliance or "
+                        "confirmed non-compliance."
                     )
                 })
 
         return attrs
+
+    def create(self, validated_data):
+        validated_data["status"] = (
+            EnforcementCase.Status.PENDING
+        )
+        return super().create(validated_data)
 
 
 class CostTaxationSerializer(serializers.ModelSerializer):

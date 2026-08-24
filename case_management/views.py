@@ -291,7 +291,9 @@ class DecisionAwardViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == "HEARING_OFFICER":
-            return queryset.filter(issued_by=user)
+            return queryset.filter(
+                issued_by=user
+            )
 
         return DecisionAward.objects.none()
 
@@ -356,6 +358,7 @@ class DecisionAwardViewSet(viewsets.ModelViewSet):
             )
 
         decision.status = DecisionAward.Status.ISSUED
+
         decision.save(
             update_fields=[
                 "status",
@@ -431,14 +434,77 @@ class AwardReviewViewSet(viewsets.ModelViewSet):
 
 
 class EnforcementCaseViewSet(viewsets.ModelViewSet):
-    queryset = (
-        EnforcementCase.objects
-        .select_related("decision_award")
-        .all()
-        .order_by("-issue_date")
-    )
     serializer_class = EnforcementCaseSerializer
     permission_classes = [IsAdminOrOfficer]
+
+    def get_queryset(self):
+        return (
+            EnforcementCase.objects
+            .select_related(
+                "decision_award",
+                "decision_award__complaint",
+            )
+            .all()
+            .order_by("-issue_date")
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-awards",
+    )
+    def available_awards(self, request):
+        awards = (
+            DecisionAward.objects
+            .select_related("complaint")
+            .filter(
+                status__in=[
+                    DecisionAward.Status.ISSUED,
+                    DecisionAward.Status.FINAL,
+                    DecisionAward.Status.ENFORCEMENT,
+                ]
+            )
+            .exclude(
+                enforcement_cases__status__in=[
+                    EnforcementCase.Status.PENDING,
+                    EnforcementCase.Status.NOTICE_ISSUED,
+                    EnforcementCase.Status.COMPLIANCE_PENDING,
+                ]
+            )
+            .order_by("-decision_date")
+        )
+
+        return Response([
+            {
+                "id": award.id,
+                "reference_number":
+                    award.reference_number,
+                "complaint_id":
+                    award.complaint_id,
+                "case_number":
+                    award.complaint.case_number,
+                "outcome":
+                    award.outcome,
+                "status":
+                    award.status,
+                "award_amount":
+                    award.award_amount,
+                "costs_awarded":
+                    award.costs_awarded,
+            }
+            for award in awards
+        ])
+
+    def perform_create(self, serializer):
+        award = serializer.validated_data["decision_award"]
+
+        if award.status != DecisionAward.Status.ENFORCEMENT:
+            award.status = DecisionAward.Status.ENFORCEMENT
+            award.save(update_fields=["status"])
+
+        serializer.save(
+            status=EnforcementCase.Status.PENDING
+        )
 
 
 class CostTaxationViewSet(viewsets.ModelViewSet):

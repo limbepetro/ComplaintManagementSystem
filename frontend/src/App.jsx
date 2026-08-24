@@ -9,6 +9,7 @@ import Mediation from "./pages/Mediation";
 import Hearings from "./pages/Hearings";
 import DecisionAwards from "./pages/DecisionAwards";
 import AwardReviews from "./pages/AwardReviews";
+import Enforcement from "./pages/Enforcement";
 
 import {
   getStoredUser,
@@ -45,81 +46,52 @@ function App() {
     {
       name: "Complaints",
       icon: "◈",
-      roles: [
-        "ADMIN",
-        "OFFICER",
-      ],
+      roles: ["ADMIN", "OFFICER"],
     },
     {
       name: "Respondent Responses",
       icon: "◉",
-      roles: [
-        "ADMIN",
-        "CASE_OFFICER",
-      ],
+      roles: ["ADMIN", "CASE_OFFICER"],
     },
     {
       name: "Mediation",
       icon: "⚖",
-      roles: [
-        "ADMIN",
-        "MEDIATOR",
-      ],
+      roles: ["ADMIN", "MEDIATOR"],
     },
     {
       name: "Hearings",
       icon: "▣",
-      roles: [
-        "ADMIN",
-        "HEARING_OFFICER",
-      ],
+      roles: ["ADMIN", "HEARING_OFFICER"],
     },
     {
       name: "Decision & Awards",
       icon: "◆",
-      roles: [
-        "ADMIN",
-        "HEARING_OFFICER",
-      ],
+      roles: ["ADMIN", "HEARING_OFFICER"],
     },
     {
       name: "Award Reviews",
       icon: "↻",
-      roles: [
-        "ADMIN",
-        "OFFICER",
-      ],
+      roles: ["ADMIN", "OFFICER"],
     },
     {
       name: "Enforcement",
       icon: "◈",
-      roles: [
-        "ADMIN",
-        "OFFICER",
-      ],
+      roles: ["ADMIN", "OFFICER"],
     },
     {
       name: "Cost Taxation",
       icon: "▰",
-      roles: [
-        "ADMIN",
-        "OFFICER",
-      ],
+      roles: ["ADMIN", "OFFICER"],
     },
     {
       name: "Case Closure",
       icon: "✓",
-      roles: [
-        "ADMIN",
-        "OFFICER",
-      ],
+      roles: ["ADMIN", "OFFICER"],
     },
     {
       name: "User Management",
       icon: "♙",
-      roles: [
-        "ADMIN",
-      ],
+      roles: ["ADMIN"],
     },
   ];
 
@@ -167,7 +139,9 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
 
@@ -190,12 +164,7 @@ function App() {
         return <AwardReviews />;
 
       case "Enforcement":
-        return (
-          <ModulePlaceholder
-            title="Enforcement"
-            description="Manage enforcement cases and compliance actions."
-          />
-        );
+        return <Enforcement />;
 
       case "Cost Taxation":
         return (
@@ -224,7 +193,9 @@ function App() {
       default:
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
     }
@@ -246,25 +217,19 @@ function App() {
         <div className="brand">
 
           <div className="brand-logo">
-
             <img
               src="/pdpc-logo.png"
               alt="PDPC Tanzania"
               className="brand-logo-image"
             />
-
           </div>
 
           <div>
-
-            <h2>
-              PDPC-CMS
-            </h2>
+            <h2>PDPC-CMS</h2>
 
             <span>
               Complaint Management
             </span>
-
           </div>
 
         </div>
@@ -277,7 +242,6 @@ function App() {
 
           {visibleNavigation.map(
             (item) => (
-
               <button
                 key={item.name}
                 type="button"
@@ -287,7 +251,9 @@ function App() {
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(item.name)
+                  setActivePage(
+                    item.name
+                  )
                 }
               >
 
@@ -300,7 +266,6 @@ function App() {
                 </span>
 
               </button>
-
             )
           )}
 
@@ -315,7 +280,6 @@ function App() {
               setActivePage("Settings")
             }
           >
-
             <span className="nav-icon">
               ⚙
             </span>
@@ -323,7 +287,6 @@ function App() {
             <span>
               Settings
             </span>
-
           </button>
 
           <button
@@ -331,7 +294,6 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
-
             <span className="nav-icon">
               ↪
             </span>
@@ -339,7 +301,6 @@ function App() {
             <span>
               Logout
             </span>
-
           </button>
 
         </div>
@@ -357,9 +318,7 @@ function App() {
               Commission
             </span>
 
-            <strong>
-              /
-            </strong>
+            <strong>/</strong>
 
             <span className="current">
               {activePage}
