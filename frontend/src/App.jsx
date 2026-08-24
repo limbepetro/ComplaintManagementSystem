@@ -8,6 +8,7 @@ import RespondentResponses from "./pages/RespondentResponses";
 import Mediation from "./pages/Mediation";
 import Hearings from "./pages/Hearings";
 import DecisionAwards from "./pages/DecisionAwards";
+import AwardReviews from "./pages/AwardReviews";
 
 import {
   getStoredUser,
@@ -131,19 +132,14 @@ function App() {
     switch (userRole) {
       case "ADMIN":
         return "System Administrator";
-
       case "OFFICER":
         return "Commission Officer";
-
       case "CASE_OFFICER":
         return "Case Officer";
-
       case "MEDIATOR":
         return "Mediator";
-
       case "HEARING_OFFICER":
         return "Hearing Officer";
-
       default:
         return "User";
     }
@@ -191,12 +187,7 @@ function App() {
         return <DecisionAwards />;
 
       case "Award Reviews":
-        return (
-          <ModulePlaceholder
-            title="Award Reviews"
-            description="Manage applications and reviews of decisions and awards."
-          />
-        );
+        return <AwardReviews />;
 
       case "Enforcement":
         return (
@@ -255,19 +246,25 @@ function App() {
         <div className="brand">
 
           <div className="brand-logo">
+
             <img
               src="/pdpc-logo.png"
               alt="PDPC Tanzania"
               className="brand-logo-image"
             />
+
           </div>
 
           <div>
-            <h2>PDPC-CMS</h2>
+
+            <h2>
+              PDPC-CMS
+            </h2>
 
             <span>
               Complaint Management
             </span>
+
           </div>
 
         </div>
@@ -280,6 +277,7 @@ function App() {
 
           {visibleNavigation.map(
             (item) => (
+
               <button
                 key={item.name}
                 type="button"
@@ -289,9 +287,7 @@ function App() {
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(
-                    item.name
-                  )
+                  setActivePage(item.name)
                 }
               >
 
@@ -304,6 +300,7 @@ function App() {
                 </span>
 
               </button>
+
             )
           )}
 
@@ -318,6 +315,7 @@ function App() {
               setActivePage("Settings")
             }
           >
+
             <span className="nav-icon">
               ⚙
             </span>
@@ -325,6 +323,7 @@ function App() {
             <span>
               Settings
             </span>
+
           </button>
 
           <button
@@ -332,6 +331,7 @@ function App() {
             className="nav-item logout"
             onClick={handleLogout}
           >
+
             <span className="nav-icon">
               ↪
             </span>
@@ -339,6 +339,7 @@ function App() {
             <span>
               Logout
             </span>
+
           </button>
 
         </div>

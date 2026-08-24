@@ -82,7 +82,7 @@ class RespondentResponseViewSet(viewsets.ModelViewSet):
             .order_by("-updated_at")
         )
 
-        data = [
+        return Response([
             {
                 "id": complaint.id,
                 "case_number": complaint.case_number,
@@ -90,19 +90,13 @@ class RespondentResponseViewSet(viewsets.ModelViewSet):
                 "status": complaint.status,
                 "respondent": {
                     "id": complaint.respondent.id,
-                    "full_name":
-                        complaint.respondent.full_name,
+                    "full_name": complaint.respondent.full_name,
                     "organization_name":
                         complaint.respondent.organization_name,
                 },
             }
             for complaint in complaints
-        ]
-
-        return Response(
-            data,
-            status=status.HTTP_200_OK,
-        )
+        ])
 
 
 class MediationSessionViewSet(viewsets.ModelViewSet):
@@ -129,9 +123,7 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
             return queryset
 
         if user.role == "MEDIATOR":
-            return queryset.filter(
-                mediator=user
-            )
+            return queryset.filter(mediator=user)
 
         return MediationSession.objects.none()
 
@@ -156,15 +148,11 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
         url_path="available-complaints",
     )
     def available_complaints(self, request):
-        complaints = (
-            Complaint.objects
-            .filter(
-                status=Complaint.Status.MEDIATION
-            )
-            .order_by("-updated_at")
-        )
+        complaints = Complaint.objects.filter(
+            status=Complaint.Status.MEDIATION
+        ).order_by("-updated_at")
 
-        data = [
+        return Response([
             {
                 "id": complaint.id,
                 "case_number": complaint.case_number,
@@ -172,12 +160,7 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
                 "status": complaint.status,
             }
             for complaint in complaints
-        ]
-
-        return Response(
-            data,
-            status=status.HTTP_200_OK,
-        )
+        ])
 
     @action(
         detail=False,
@@ -188,28 +171,22 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
         if request.user.role != "ADMIN":
             return Response(
                 {
-                    "detail": (
-                        "Only administrators can list "
-                        "available mediators."
-                    )
+                    "detail":
+                        "Only administrators can list available mediators."
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        mediators = (
-            User.objects
-            .filter(
-                role="MEDIATOR",
-                is_active=True,
-            )
-            .order_by(
-                "first_name",
-                "last_name",
-                "username",
-            )
+        mediators = User.objects.filter(
+            role="MEDIATOR",
+            is_active=True,
+        ).order_by(
+            "first_name",
+            "last_name",
+            "username",
         )
 
-        data = [
+        return Response([
             {
                 "id": user.id,
                 "username": user.username,
@@ -219,12 +196,7 @@ class MediationSessionViewSet(viewsets.ModelViewSet):
                 ),
             }
             for user in mediators
-        ]
-
-        return Response(
-            data,
-            status=status.HTTP_200_OK,
-        )
+        ])
 
 
 class HearingViewSet(viewsets.ModelViewSet):
@@ -276,15 +248,11 @@ class HearingViewSet(viewsets.ModelViewSet):
         url_path="available-complaints",
     )
     def available_complaints(self, request):
-        complaints = (
-            Complaint.objects
-            .filter(
-                status=Complaint.Status.HEARING
-            )
-            .order_by("-updated_at")
-        )
+        complaints = Complaint.objects.filter(
+            status=Complaint.Status.HEARING
+        ).order_by("-updated_at")
 
-        data = [
+        return Response([
             {
                 "id": complaint.id,
                 "case_number": complaint.case_number,
@@ -292,26 +260,11 @@ class HearingViewSet(viewsets.ModelViewSet):
                 "status": complaint.status,
             }
             for complaint in complaints
-        ]
-
-        return Response(
-            data,
-            status=status.HTTP_200_OK,
-        )
+        ])
 
 
 class HearingCommitteeViewSet(viewsets.ModelViewSet):
-    queryset = (
-        HearingCommittee.objects
-        .select_related(
-            "hearing",
-            "chairperson",
-            "member_two",
-            "member_three",
-        )
-        .all()
-    )
-
+    queryset = HearingCommittee.objects.all()
     serializer_class = HearingCommitteeSerializer
     permission_classes = [IsAdminOrHearingOfficer]
 
@@ -323,58 +276,167 @@ class DecisionAwardViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.role == "ADMIN":
-            return (
-                DecisionAward.objects
-                .select_related(
-                    "complaint",
-                    "hearing",
-                    "issued_by",
-                )
-                .all()
-                .order_by("-decision_date")
+        queryset = (
+            DecisionAward.objects
+            .select_related(
+                "complaint",
+                "hearing",
+                "issued_by",
             )
+            .all()
+            .order_by("-decision_date")
+        )
+
+        if user.role == "ADMIN":
+            return queryset
 
         if user.role == "HEARING_OFFICER":
-            return (
-                DecisionAward.objects
-                .select_related(
-                    "complaint",
-                    "hearing",
-                    "issued_by",
-                )
-                .filter(issued_by=user)
-                .order_by("-decision_date")
-            )
+            return queryset.filter(issued_by=user)
 
         return DecisionAward.objects.none()
 
+    def perform_create(self, serializer):
+        serializer.save(
+            issued_by=self.request.user,
+            status=DecisionAward.Status.DRAFT,
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-cases",
+    )
+    def available_cases(self, request):
+        hearings = (
+            Hearing.objects
+            .select_related("complaint")
+            .filter(
+                status=Hearing.Status.COMPLETED,
+                complaint__status=Complaint.Status.HEARING,
+                decision_awards__isnull=True,
+            )
+            .order_by("-hearing_date")
+        )
+
+        return Response([
+            {
+                "complaint_id": hearing.complaint_id,
+                "case_number": hearing.complaint.case_number,
+                "title": hearing.complaint.title,
+                "hearing_id": hearing.id,
+                "hearing_date": hearing.hearing_date,
+            }
+            for hearing in hearings
+        ])
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="issue",
+    )
+    def issue(self, request, pk=None):
+        decision = self.get_object()
+
+        if decision.status != DecisionAward.Status.DRAFT:
+            return Response(
+                {
+                    "detail":
+                        "Only draft decisions can be issued."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not decision.findings.strip():
+            return Response(
+                {
+                    "findings":
+                        "Findings are required before issuing."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        decision.status = DecisionAward.Status.ISSUED
+        decision.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        return Response(
+            DecisionAwardSerializer(
+                decision
+            ).data
+        )
+
 
 class AwardReviewViewSet(viewsets.ModelViewSet):
-    queryset = (
-        AwardReview.objects
-        .select_related(
-            "decision_award",
-            "applicant",
-        )
-        .all()
-        .order_by("-application_date")
-    )
-
     serializer_class = AwardReviewSerializer
     permission_classes = [IsAdminOrOfficer]
+
+    def get_queryset(self):
+        return (
+            AwardReview.objects
+            .select_related(
+                "decision_award",
+                "applicant",
+            )
+            .all()
+            .order_by("-application_date")
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            applicant=self.request.user,
+            status=AwardReview.Status.SUBMITTED,
+            outcome=AwardReview.Outcome.PENDING,
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="available-awards",
+    )
+    def available_awards(self, request):
+        awards = (
+            DecisionAward.objects
+            .filter(
+                status__in=[
+                    DecisionAward.Status.ISSUED,
+                    DecisionAward.Status.FINAL,
+                ]
+            )
+            .exclude(
+                reviews__status=AwardReview.Status.COMPLETED
+            )
+            .order_by("-decision_date")
+        )
+
+        return Response([
+            {
+                "id": award.id,
+                "reference_number":
+                    award.reference_number,
+                "complaint_id":
+                    award.complaint_id,
+                "outcome":
+                    award.outcome,
+                "status":
+                    award.status,
+                "decision_date":
+                    award.decision_date,
+            }
+            for award in awards
+        ])
 
 
 class EnforcementCaseViewSet(viewsets.ModelViewSet):
     queryset = (
         EnforcementCase.objects
-        .select_related(
-            "decision_award",
-        )
+        .select_related("decision_award")
         .all()
         .order_by("-issue_date")
     )
-
     serializer_class = EnforcementCaseSerializer
     permission_classes = [IsAdminOrOfficer]
 
@@ -389,7 +451,6 @@ class CostTaxationViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-filing_date")
     )
-
     serializer_class = CostTaxationSerializer
     permission_classes = [IsAdminOrOfficer]
 
@@ -404,6 +465,5 @@ class CaseClosureViewSet(viewsets.ModelViewSet):
         .all()
         .order_by("-closure_date")
     )
-
     serializer_class = CaseClosureSerializer
     permission_classes = [IsAdminOrOfficer]

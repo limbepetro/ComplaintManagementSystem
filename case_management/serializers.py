@@ -113,9 +113,7 @@ class RespondentResponseSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class RespondentResponseCreateSerializer(
-    serializers.ModelSerializer
-):
+class RespondentResponseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RespondentResponse
         fields = [
@@ -325,16 +323,12 @@ class HearingSerializer(serializers.ModelSerializer):
 
         proceedings = attrs.get(
             "proceedings",
-            instance.proceedings
-            if instance
-            else "",
+            instance.proceedings if instance else "",
         )
 
         adjournment_reason = attrs.get(
             "adjournment_reason",
-            instance.adjournment_reason
-            if instance
-            else "",
+            instance.adjournment_reason if instance else "",
         )
 
         if complaint is not None:
@@ -438,10 +432,12 @@ class DecisionAwardSerializer(serializers.ModelSerializer):
         instance = self.instance
 
         complaint = attrs.get("complaint")
+
         if complaint is None and instance is not None:
             complaint = instance.complaint
 
         hearing = attrs.get("hearing")
+
         if hearing is None and instance is not None:
             hearing = instance.hearing
 
@@ -527,14 +523,155 @@ class DecisionAwardSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data["status"] = DecisionAward.Status.DRAFT
+        validated_data["status"] = (
+            DecisionAward.Status.DRAFT
+        )
         return super().create(validated_data)
 
 
 class AwardReviewSerializer(serializers.ModelSerializer):
+    VALID_TRANSITIONS = {
+        AwardReview.Status.SUBMITTED: {
+            AwardReview.Status.UNDER_REVIEW,
+        },
+        AwardReview.Status.UNDER_REVIEW: {
+            AwardReview.Status.APPROVED,
+            AwardReview.Status.REJECTED,
+            AwardReview.Status.COMPLETED,
+        },
+        AwardReview.Status.APPROVED: {
+            AwardReview.Status.COMPLETED,
+        },
+        AwardReview.Status.REJECTED: {
+            AwardReview.Status.COMPLETED,
+        },
+        AwardReview.Status.COMPLETED: set(),
+    }
+
     class Meta:
         model = AwardReview
-        fields = "__all__"
+        fields = [
+            "id",
+            "decision_award",
+            "applicant",
+            "application_date",
+            "grounds",
+            "status",
+            "outcome",
+            "review_date",
+            "decision",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "applicant",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        instance = self.instance
+
+        decision_award = attrs.get(
+            "decision_award"
+        )
+
+        if decision_award is None and instance is not None:
+            decision_award = instance.decision_award
+
+        if decision_award is None:
+            raise serializers.ValidationError({
+                "decision_award": (
+                    "A decision and award is required."
+                )
+            })
+
+        if decision_award.status not in [
+            DecisionAward.Status.ISSUED,
+            DecisionAward.Status.UNDER_REVIEW,
+            DecisionAward.Status.FINAL,
+        ]:
+            raise serializers.ValidationError({
+                "decision_award": (
+                    "Only an issued, under-review, or final "
+                    "decision can be reviewed."
+                )
+            })
+
+        new_status = attrs.get("status")
+
+        if new_status is None:
+            new_status = (
+                instance.status
+                if instance is not None
+                else AwardReview.Status.SUBMITTED
+            )
+
+        if instance is not None:
+            current_status = instance.status
+
+            if new_status != current_status:
+                allowed_statuses = self.VALID_TRANSITIONS.get(
+                    current_status,
+                    set(),
+                )
+
+                if new_status not in allowed_statuses:
+                    raise serializers.ValidationError({
+                        "status": (
+                            f"Invalid review status transition "
+                            f"from {current_status} to {new_status}."
+                        )
+                    })
+
+        if new_status == AwardReview.Status.COMPLETED:
+            outcome = attrs.get(
+                "outcome",
+                instance.outcome
+                if instance is not None
+                else AwardReview.Outcome.PENDING,
+            )
+
+            if outcome == AwardReview.Outcome.PENDING:
+                raise serializers.ValidationError({
+                    "outcome": (
+                        "A completed award review must "
+                        "have a final outcome."
+                    )
+                })
+
+        if new_status in {
+            AwardReview.Status.APPROVED,
+            AwardReview.Status.REJECTED,
+            AwardReview.Status.COMPLETED,
+        }:
+            decision = attrs.get(
+                "decision",
+                instance.decision
+                if instance is not None
+                else "",
+            )
+
+            if not decision or not decision.strip():
+                raise serializers.ValidationError({
+                    "decision": (
+                        "A review decision is required "
+                        "before this review can be finalized."
+                    )
+                })
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["status"] = (
+            AwardReview.Status.SUBMITTED
+        )
+        validated_data["outcome"] = (
+            AwardReview.Outcome.PENDING
+        )
+
+        return super().create(validated_data)
 
 
 class EnforcementCaseSerializer(serializers.ModelSerializer):
@@ -564,6 +701,7 @@ class EnforcementCaseSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
+
         new_status = attrs.get("status")
 
         if new_status is None:
