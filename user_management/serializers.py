@@ -5,11 +5,6 @@ from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    Used for displaying and updating normal user information.
-    Passwords are never included in the response.
-    """
-
     class Meta:
         model = User
         fields = [
@@ -29,10 +24,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """
-    Used only when an administrator creates a new user.
-    """
-
     password = serializers.CharField(
         write_only=True,
         required=True,
@@ -52,7 +43,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "is_active",
             "password",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = [
+            "id",
+        ]
+
+    def validate_username(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Username is required."
+            )
+
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError(
+                "This username is already in use."
+            )
+
+        return value
 
     def validate_password(self, value):
         validate_password(value)
@@ -69,11 +77,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserPasswordChangeSerializer(serializers.Serializer):
-    """
-    Handles password changes without exposing passwords
-    through the normal user API.
-    """
-
     current_password = serializers.CharField(
         write_only=True,
         required=True,
@@ -96,20 +99,19 @@ class UserPasswordChangeSerializer(serializers.Serializer):
         if not user.check_password(
             attrs["current_password"]
         ):
-            raise serializers.ValidationError(
-                {
-                    "current_password":
+            raise serializers.ValidationError({
+                "current_password":
                     "Current password is incorrect."
-                }
-            )
+            })
 
-        if attrs["new_password"] != attrs["confirm_password"]:
-            raise serializers.ValidationError(
-                {
-                    "confirm_password":
+        if (
+            attrs["new_password"]
+            != attrs["confirm_password"]
+        ):
+            raise serializers.ValidationError({
+                "confirm_password":
                     "Passwords do not match."
-                }
-            )
+            })
 
         validate_password(
             attrs["new_password"],

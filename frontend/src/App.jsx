@@ -12,6 +12,7 @@ import AwardReviews from "./pages/AwardReviews";
 import Enforcement from "./pages/Enforcement";
 import CostTaxation from "./pages/CostTaxation";
 import CaseClosure from "./pages/CaseClosure";
+import UserManagement from "./pages/UserManagement";
 
 import {
   getStoredUser,
@@ -175,7 +176,9 @@ function App() {
       case "Dashboard":
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
 
@@ -207,17 +210,14 @@ function App() {
         return <CaseClosure />;
 
       case "User Management":
-        return (
-          <ModulePlaceholder
-            title="User Management"
-            description="Manage system users, roles, and account status."
-          />
-        );
+        return <UserManagement />;
 
       default:
         return (
           <Dashboard
-            onNewComplaint={handleNewComplaint}
+            onNewComplaint={
+              handleNewComplaint
+            }
           />
         );
     }
@@ -280,7 +280,9 @@ function App() {
                     : ""
                 }`}
                 onClick={() =>
-                  setActivePage(item.name)
+                  setActivePage(
+                    item.name
+                  )
                 }
               >
 
@@ -416,58 +418,6 @@ function App() {
         </section>
 
       </main>
-
-    </div>
-  );
-}
-
-function ModulePlaceholder({
-  title,
-  description,
-}) {
-  return (
-    <div className="module-page">
-
-      <div className="page-heading">
-
-        <div>
-
-          <p className="welcome">
-            CASE MANAGEMENT SYSTEM
-          </p>
-
-          <h1>
-            {title}
-          </h1>
-
-          <p className="subtitle">
-            {description}
-          </p>
-
-        </div>
-
-      </div>
-
-      <section className="module-panel">
-
-        <div className="module-empty">
-
-          <div className="empty-icon">
-            ◈
-          </div>
-
-          <h2>
-            {title}
-          </h2>
-
-          <p>
-            This module is ready for
-            its Django API integration.
-          </p>
-
-        </div>
-
-      </section>
 
     </div>
   );
